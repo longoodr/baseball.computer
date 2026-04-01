@@ -1,0 +1,146 @@
+name: build_pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      bucket_name:
+        description: 'R2 bucket name'
+        default: 'timeball'
+      base_url:
+        description: 'Base URL for Parquet views in bc_remote.db'
+        default: 'https://data.baseball.computer'
+
+jobs:
+  build:
+    name: End-to-end pipeline
+    runs-on: ubuntu-22.04
+    env:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET_NAME: ${{ inputs.bucket_name }}
+      BC_BASE_URL: ${{ inputs.base_url }}
+
+    steps:
+      # ── 0. Checkout this repo ──────────────────────────────────
+      - name: Checkout baseball.computer
+        uses: actions/checkout@v4
+
+      # ── 1. Download Retrosheet data ────────────────────────────
+      - name: Download Retrosheet mirror
+        run: |
+          wget -q https://github.com/droher/retrosheet-mirror/archive/working.zip -O retrosheet.zip
+          unzip -q retrosheet.zip
+          mv retrosheet-mirror-working retrosheet
+
+      # ── 2. Build and run the Rust parser ───────────────────────
+      - name: Checkout baseball.computer.rs
+        uses: actions/checkout@v4
+        with:
+          repository: longoodr/baseball.computer.rs
+          path: baseball.computer.rs
+
+      - name: Cache Cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            baseball.computer.rs/target/
+          key: cargo-${{ hashFiles('baseball.computer.rs/**/Cargo.lock') }}
+          restore-keys: cargo-
+
+      - name: Build Rust parser
+        working-directory: baseball.computer.rs
+        run: cargo build --release
+
+      - name: Move Retrosheet data into parser directory
+        run: mv retrosheet baseball.computer.rs/retrosheet
+
+      - name: Run Rust parser (Retrosheet → CSV)
+        working-directory: baseball.computer.rs
+        run: |
+          mkdir -p csv parquet
+          ./target/release/baseball-computer -i retrosheet -o csv
+
+      - name: Install parser Python dependencies
+        working-directory: baseball.computer.rs
+        run: pip install -r bin/requirements.txt
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('baseball.computer.rs/bin/requirements.txt', 'poetry.lock') }}
+          restore-keys: pip-
+
+      - name: Convert CSV → Parquet
+        working-directory: baseball.computer.rs
+        run: python bin/parquet.py
+
+      - name: Generate auxiliary files
+        working-directory: baseball.computer.rs
+        run: python bin/simple_files.py
+
+      # ── 3. Set up Python / Poetry and run dbt ──────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install Python dependencies (this repo)
+        run: poetry install --no-interaction --no-root
+
+      - name: Create dbt profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          bc:
+            target: main
+            outputs:
+              main:
+                type: duckdb
+                path: bc.db
+                extensions:
+                  - httpfs
+                  - parquet
+          EOF
+
+      - name: Copy parser outputs for dbt sources
+        run: |
+          # dbt-duckdb reads parquet files as external sources
+          # Copy parser outputs to expected locations
+          cp -r baseball.computer.rs/parquet ./parquet
+          cp -r baseball.computer.rs/retrosheet_simple ./retrosheet_simple 2>/dev/null || true
+
+      - name: Run dbt deps & build
+        working-directory: bc
+        run: |
+          poetry run dbt deps
+          poetry run dbt build
+
+      # ── 4. Export and upload to R2 ─────────────────────────────
+      - name: Install boto3
+        run: pip install boto3
+
+      - name: Run create_web_db.py
+        working-directory: bc
+        run: poetry run python ../scripts/create_web_db.py
+
+      # ── 5. Purge Cloudflare cache (optional) ──────────────────
+      - name: Purge Cloudflare cache
+        if: ${{ env.CLOUDFLARE_ZONE != '' && env.PURGE_CACHE_TOKEN != '' }}
+        env:
+          CLOUDFLARE_ZONE: ${{ secrets.CLOUDFLARE_ZONE }}
+          PURGE_CACHE_TOKEN: ${{ secrets.PURGE_CACHE_TOKEN }}
+        run: |
+          curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE}/purge_cache" \
+            -H "Authorization: Bearer ${PURGE_CACHE_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything": true}'
