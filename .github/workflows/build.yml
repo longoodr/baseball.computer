@@ -73,7 +73,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: pip-${{ hashFiles('baseball.computer.rs/bin/requirements.txt', 'poetry.lock') }}
+          key: pip-${{ hashFiles('baseball.computer.rs/bin/requirements.txt') }}
           restore-keys: pip-
 
       - name: Convert CSV → Parquet
@@ -125,9 +125,6 @@ jobs:
           poetry run dbt build
 
       # ── 4. Export and upload to R2 ─────────────────────────────
-      - name: Install boto3
-        run: pip install boto3
-
       - name: Run create_web_db.py
         working-directory: bc
         run: poetry run python ../scripts/create_web_db.py
