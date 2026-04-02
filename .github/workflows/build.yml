@@ -45,11 +45,12 @@ jobs:
           cp chadwick-retrosheet/reference/ballparks.csv retrosheet/
           cp chadwick-retrosheet/reference/biofile.csv retrosheet/
           # Gamelogs: per-year files + top-level postseason/all-star logs
-          find chadwick-retrosheet/seasons -name 'gl*.txt' -exec cp {} retrosheet/gamelogs/ \;
-          find chadwick-retrosheet/gamelog -name '*.TXT' -exec cp {} retrosheet/gamelogs/ \;
+          # Use -iname for case-insensitive match (repo mixes GL*.TXT and gl*.txt)
+          find chadwick-retrosheet/seasons -iname 'gl*.txt' -exec cp {} retrosheet/gamelogs/ \;
+          find chadwick-retrosheet/gamelog -iname '*.txt' -exec cp {} retrosheet/gamelogs/ \;
           # Rosters and schedules scattered across season dirs
-          find chadwick-retrosheet/seasons -name '*.ROS' -exec cp {} retrosheet/rosters/ \;
-          find chadwick-retrosheet/seasons -name '*schedule.csv' -exec cp {} retrosheet/schedules/ \;
+          find chadwick-retrosheet/seasons -iname '*.ros' -exec cp {} retrosheet/rosters/ \;
+          find chadwick-retrosheet/seasons -iname '*schedule.csv' -exec cp {} retrosheet/schedules/ \;
           rm -rf chadwick-retrosheet
 
       # ── 2. Build and run the Rust parser ───────────────────────
