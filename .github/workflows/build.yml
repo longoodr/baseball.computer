@@ -51,7 +51,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: longoodr/baseball.computer.rs
-          ref: fix/graceful-lineup-lookup
           path: baseball.computer.rs
 
       - name: Cache Cargo artifacts
