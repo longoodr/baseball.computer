@@ -30,11 +30,27 @@ jobs:
         uses: actions/checkout@v4
 
       # ── 1. Download Retrosheet data ────────────────────────────
-      - name: Download Retrosheet mirror
+      - name: Checkout Retrosheet data (Chadwick Bureau)
+        uses: actions/checkout@v4
+        with:
+          repository: chadwickbureau/retrosheet
+          path: chadwick-retrosheet
+
+      - name: Normalize Retrosheet directory structure
         run: |
-          wget -q https://github.com/droher/retrosheet-mirror/archive/working.zip -O retrosheet.zip
-          unzip -q retrosheet.zip
-          mv retrosheet-mirror-working retrosheet
+          mkdir -p retrosheet/gamelogs retrosheet/rosters retrosheet/schedules
+          # Event files — keep seasons/ tree for the parser's recursive glob
+          cp -r chadwick-retrosheet/seasons retrosheet/seasons
+          # Reference CSVs expected at retrosheet root
+          cp chadwick-retrosheet/reference/ballparks.csv retrosheet/
+          cp chadwick-retrosheet/reference/biofile.csv retrosheet/
+          # Gamelogs: per-year files + top-level postseason/all-star logs
+          find chadwick-retrosheet/seasons -name 'gl*.txt' -exec cp {} retrosheet/gamelogs/ \;
+          find chadwick-retrosheet/gamelog -name '*.TXT' -exec cp {} retrosheet/gamelogs/ \;
+          # Rosters and schedules scattered across season dirs
+          find chadwick-retrosheet/seasons -name '*.ROS' -exec cp {} retrosheet/rosters/ \;
+          find chadwick-retrosheet/seasons -name '*schedule.csv' -exec cp {} retrosheet/schedules/ \;
+          rm -rf chadwick-retrosheet
 
       # ── 2. Build and run the Rust parser ───────────────────────
       - name: Checkout baseball.computer.rs
