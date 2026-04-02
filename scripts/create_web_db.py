@@ -12,7 +12,7 @@ def export_table_to_parquet(conn, schema_name, table_name, file_name):
     print(f"Exported {schema_name}.{table_name} to {file_name}")
 
 
-def upload_to_r2(file_name, bucket_name, prefix):
+def upload_to_r2(file_name, bucket_name, prefix, base_url):
     print(f"Uploading {file_name} to R2 bucket {bucket_name}")
     account_id = os.environ["R2_ACCOUNT_ID"]
     access_key_id = os.environ["R2_ACCESS_KEY_ID"]
@@ -25,7 +25,7 @@ def upload_to_r2(file_name, bucket_name, prefix):
     )
     name_only = file_name.split("/")[-1]
     s3.meta.client.upload_file(file_name, bucket_name, f"{prefix}/{name_only}")
-    url = f"https://data.baseball.computer/{prefix}/{name_only}"
+    url = f"{base_url}/{prefix}/{name_only}"
     return url
 
 
@@ -41,7 +41,8 @@ def main():
     # Delete the new database if it exists
     if os.path.exists(new_db_path):
         os.remove(new_db_path)
-    bucket_name = "timeball"
+    bucket_name = os.environ.get("R2_BUCKET_NAME", "timeball")
+    base_url = os.environ.get("BC_BASE_URL", "https://data.baseball.computer")
     prefix = "dbt"
 
     conn = duckdb.connect(original_db_path)
@@ -77,7 +78,7 @@ def main():
             parquet_file = f"/tmp/{schema_name}_{table_name}.parquet"
 
             # Upload to R2 and get URL
-            url = upload_to_r2(parquet_file, bucket_name, prefix)
+            url = upload_to_r2(parquet_file, bucket_name, prefix, base_url)
             print(f"URL: {url}")
 
             # Create view in new database
@@ -88,7 +89,7 @@ def main():
     
     conn.close()
     new_conn.close()
-    url = upload_to_r2(new_db_path, bucket_name, prefix)
+    url = upload_to_r2(new_db_path, bucket_name, prefix, base_url)
     print(f"URL: {url}")
 
 
