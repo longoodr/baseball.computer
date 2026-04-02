@@ -81,7 +81,7 @@ jobs:
 
       - name: Install parser Python dependencies
         working-directory: baseball.computer.rs
-        run: pip install -r bin/requirements.txt
+        run: pip install "numpy<2" && pip install -r bin/requirements.txt
 
       - name: Cache pip packages
         uses: actions/cache@v4
