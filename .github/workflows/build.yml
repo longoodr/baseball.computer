@@ -127,15 +127,61 @@ jobs:
 
       - name: Copy parser outputs for dbt sources
         run: |
-          # dbt-duckdb reads parquet files as external sources
-          # Copy parser outputs to expected locations
           cp -r baseball.computer.rs/parquet ./parquet
           cp -r baseball.computer.rs/retrosheet_simple ./retrosheet_simple 2>/dev/null || true
+
+      - name: Load parquet into DuckDB for dbt sources
+        working-directory: bc
+        run: |
+          poetry run python - << 'PYEOF'
+          import duckdb, glob, os
+
+          conn = duckdb.connect("bc.db")
+          conn.execute("INSTALL parquet; LOAD parquet")
+
+          # Parser event/game/box_score parquets → schemas matching dbt source.yml
+          schema_map = {
+              "box_score": "box_score",
+              "event": "event",
+              "game": "game",
+          }
+          for parquet_file in sorted(glob.glob("../parquet/*.parquet")):
+              table_name = os.path.splitext(os.path.basename(parquet_file))[0]
+              # Determine schema from table name prefix
+              schema = "event"  # default
+              for prefix, s in schema_map.items():
+                  if table_name.startswith(prefix):
+                      schema = s
+                      break
+              conn.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+              conn.execute(f"CREATE OR REPLACE TABLE {schema}.{table_name} AS SELECT * FROM '{parquet_file}'")
+              print(f"  Loaded {schema}.{table_name}")
+
+          # Retrosheet simple files → misc schema
+          conn.execute("CREATE SCHEMA IF NOT EXISTS misc")
+          for parquet_file in sorted(glob.glob("../retrosheet_simple/*.parquet")):
+              table_name = os.path.splitext(os.path.basename(parquet_file))[0]
+              conn.execute(f"CREATE OR REPLACE TABLE misc.{table_name} AS SELECT * FROM '{parquet_file}'")
+              print(f"  Loaded misc.{table_name}")
+
+          # Baseballdatabank (if present)
+          if os.path.isdir("../baseballdatabank"):
+              conn.execute("CREATE SCHEMA IF NOT EXISTS baseballdatabank")
+              for parquet_file in sorted(glob.glob("../baseballdatabank/*.parquet")):
+                  table_name = os.path.splitext(os.path.basename(parquet_file))[0]
+                  conn.execute(f"CREATE OR REPLACE TABLE baseballdatabank.{table_name} AS SELECT * FROM '{parquet_file}'")
+                  print(f"  Loaded baseballdatabank.{table_name}")
+
+          conn.close()
+          print("Done loading sources into bc.db")
+          PYEOF
 
       - name: Run dbt deps & build
         working-directory: bc
         run: |
           poetry run dbt deps
+          poetry run dbt run-operation create_enums
+          poetry run dbt run-operation alter_types
           poetry run dbt build
 
       # ── 4. Export and upload to R2 ─────────────────────────────
