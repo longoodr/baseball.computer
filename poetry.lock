@@ -4,7 +4,7 @@
 name = "absl-py"
 version = "2.1.0"
 description = "Abseil Python Common Libraries, see https://github.com/abseil/abseil-py."
-optional = false
+optional = true
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
@@ -648,7 +648,7 @@ tests = ["asttokens (>=2.1.0)", "coverage", "coverage-enable-subprocess", "ipyth
 name = "h5py"
 version = "3.10.0"
 description = "Read and write HDF5 files from Python"
-optional = false
+optional = true
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
@@ -817,7 +817,7 @@ six = "*"
 name = "jax"
 version = "0.4.25"
 description = "Differentiate, compile, and transform Numpy code."
-optional = false
+optional = true
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
@@ -855,9 +855,10 @@ tpu = ["jaxlib (==0.4.25)", "libtpu-nightly (==0.1.dev20240224)", "requests"]
 name = "jax-metal"
 version = "0.0.6"
 description = "JAX acceleration for Mac GPUs."
-optional = false
+optional = true
 python-versions = "*"
 groups = ["main"]
+markers = "sys_platform == \"darwin\""
 files = [
     {file = "jax_metal-0.0.6-py3-none-macosx_10_14_x86_64.whl", hash = "sha256:8b35a9d059e82432a3c5d68643cd243dca3ceea49b218174b79f8d0473f4bf7c"},
     {file = "jax_metal-0.0.6-py3-none-macosx_13_0_arm64.whl", hash = "sha256:368a7f5933b7a8278588b1e1e4a5451926176372c4c60d3706a10afa71b8361d"},
@@ -873,7 +874,7 @@ wheel = ">=0.35,<1.0"
 name = "jaxlib"
 version = "0.4.23"
 description = "XLA library for JAX"
-optional = false
+optional = true
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
@@ -1148,7 +1149,7 @@ test = ["ipykernel", "pre-commit", "pytest (<8)", "pytest-cov", "pytest-timeout"
 name = "keras"
 version = "3.1.1"
 description = "Multi-backend Keras."
-optional = false
+optional = true
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
@@ -1373,7 +1374,7 @@ six = ">=1.9.0,<2.0"
 name = "ml-dtypes"
 version = "0.4.0"
 description = ""
-optional = false
+optional = true
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
@@ -1487,7 +1488,7 @@ files = [
 name = "namex"
 version = "0.0.7"
 description = "A simple utility to separate the implementation of your Python package and its public API surface."
-optional = false
+optional = true
 python-versions = "*"
 groups = ["main"]
 files = [
@@ -1576,7 +1577,7 @@ files = [
 name = "opt-einsum"
 version = "3.3.0"
 description = "Optimizing numpys einsum function"
-optional = false
+optional = true
 python-versions = ">=3.5"
 groups = ["main"]
 files = [
@@ -1595,7 +1596,7 @@ tests = ["pytest", "pytest-cov", "pytest-pep8"]
 name = "optree"
 version = "0.11.0"
 description = "Optimized PyTree Utilities."
-optional = false
+optional = true
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
@@ -3214,9 +3215,10 @@ files = [
 name = "wheel"
 version = "0.43.0"
 description = "A built-package format for Python"
-optional = false
+optional = true
 python-versions = ">=3.8"
 groups = ["main"]
+markers = "sys_platform == \"darwin\""
 files = [
     {file = "wheel-0.43.0-py3-none-any.whl", hash = "sha256:55c570405f142630c6b9f72fe09d9b67cf1477fcf543ae5b8dcb1f5b7377da81"},
     {file = "wheel-0.43.0.tar.gz", hash = "sha256:465ef92c69fa5c5da2d1cf8ac40559a8c940886afcef87dcf14b9470862f1d85"},
@@ -3244,4 +3246,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4"
-content-hash = "35d4010427158a2c44195a8852ecf532327d8f7bc12c63fd7e7a2d5ffdaaf0d8"
+content-hash = "9b81011d605af15408316e69b9359318b2b531fa3333c7936e324a7d0222a18c"
