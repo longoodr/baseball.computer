@@ -125,6 +125,13 @@
 
 {% macro alter_types() %}
     {% for node in graph.sources.values() -%}
+        {# Skip tables that don't exist (e.g. optional baseballdatabank) #}
+        {% set check_sql %}
+            SELECT count(*) FROM information_schema.tables
+            WHERE table_schema = '{{ node.schema }}' AND table_name = '{{ node.name }}'
+        {% endset %}
+        {% set table_exists = run_query(check_sql).columns[0][0] > 0 %}
+        {% if table_exists %}
         {% set sql %}
       {% for col_name, col_data in node.columns.items() if col_data.get("data_type") -%}
           ALTER TABLE {{ node.schema }}.{{ node.name }} ALTER COLUMN "{{ col_name }}" TYPE {{ col_data.data_type }};
@@ -132,5 +139,8 @@
         {% endset %}
         {% do log(sql, info=True)%}
         {% do run_query(sql) %}
+        {% else %}
+        {% do log("Skipping alter_types for missing table " ~ node.schema ~ "." ~ node.name, info=True) %}
+        {% endif %}
     {% endfor %}
 {% endmacro %}
